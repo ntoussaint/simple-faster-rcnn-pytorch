@@ -7,7 +7,7 @@ from pprint import pprint
 
 class Config:
     # data
-    voc_data_dir = '/home/cy/.chainer/dataset/pfnet/chainercv/voc/VOCdevkit/VOC2007/'
+    data_dir = '/home/nt08/software/simple-faster-rcnn-pytorch/data/markers_imdb'
     min_size = 600  # image resize
     max_size = 1000 # image resize
     num_workers = 8
@@ -30,8 +30,8 @@ class Config:
     plot_every = 40  # vis every N iter
 
     # preset
-    data = 'voc'
-    pretrained_model = 'vgg16'
+    data = 'markers'
+    pretrained_model = 'alexnet'
 
     # training
     epoch = 14
