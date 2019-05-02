@@ -5,6 +5,7 @@ from torch import nn
 
 from model.utils.bbox_tools import generate_anchor_base
 from model.utils.creator_tool import ProposalCreator
+from utils import array_tool as at
 
 
 class RegionProposalNetwork(nn.Module):
@@ -99,10 +100,9 @@ class RegionProposalNetwork(nn.Module):
 
         """
         n, _, hh, ww = x.shape
-        anchor = _enumerate_shifted_anchor(
+        anchor = _enumerate_shifted_anchor_torch(
             np.array(self.anchor_base),
             self.feat_stride, hh, ww)
-
         n_anchor = anchor.shape[0] // (hh * ww)
         h = F.relu(self.conv1(x))
 
@@ -121,15 +121,15 @@ class RegionProposalNetwork(nn.Module):
         roi_indices = list()
         for i in range(n):
             roi = self.proposal_layer(
-                rpn_locs[i].cpu().data.numpy(),
-                rpn_fg_scores[i].cpu().data.numpy(),
+                rpn_locs[i].data,
+                rpn_fg_scores[i].data,
                 anchor, img_size,
                 scale=scale)
             batch_index = i * np.ones((len(roi),), dtype=np.int32)
             rois.append(roi)
             roi_indices.append(batch_index)
 
-        rois = np.concatenate(rois, axis=0)
+        rois = t.cat(rois, dim=0)
         roi_indices = np.concatenate(roi_indices, axis=0)
         return rpn_locs, rpn_scores, rois, roi_indices, anchor
 
@@ -173,18 +173,23 @@ def _enumerate_shifted_anchor_torch(anchor_base, feat_stride, height, width):
     # !TODO: add support for torch.CudaTensor
     # xp = cuda.get_array_module(anchor_base)
     import torch as t
-    shift_y = t.arange(0, height * feat_stride, feat_stride)
-    shift_x = t.arange(0, width * feat_stride, feat_stride)
-    shift_x, shift_y = xp.meshgrid(shift_x, shift_y)
-    shift = xp.stack((shift_y.ravel(), shift_x.ravel(),
-                      shift_y.ravel(), shift_x.ravel()), axis=1)
+    shift_y = t.arange(0, height * feat_stride, feat_stride).to('cuda')
+    shift_x = t.arange(0, width * feat_stride, feat_stride).to('cuda')
+    shift_x, shift_y = t.meshgrid([shift_x, shift_y])
+    shift_x = shift_x.transpose(0,1)
+    shift_y = shift_y.transpose(0,1)
+    shift = t.stack((shift_y.flatten(), shift_x.flatten(),
+                     shift_y.flatten(), shift_x.flatten()), dim=1)
 
+    anchor_base = t.from_numpy(anchor_base).to('cuda')
     A = anchor_base.shape[0]
     K = shift.shape[0]
-    anchor = anchor_base.reshape((1, A, 4)) + \
-             shift.reshape((1, K, 4)).transpose((1, 0, 2))
-    anchor = anchor.reshape((K * A, 4)).astype(np.float32)
+    anchor_base = anchor_base.view((1, A, 4))
+    shift = shift.view((1, K, 4)).permute(1, 0, 2)
+    anchor = anchor_base + shift.type_as(anchor_base)
+    anchor = anchor.view((K * A, 4))
     return anchor
+
 
 
 def normal_init(m, mean, stddev, truncated=False):

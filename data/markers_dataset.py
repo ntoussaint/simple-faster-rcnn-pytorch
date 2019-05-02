@@ -6,10 +6,10 @@ import numpy as np
 from .util import read_image
 
 
-class VOCBboxDataset:
-    """Bounding box dataset for PASCAL `VOC`_.
+class MarkersDataset:
+    """Bounding box dataset for N markers_.
 
-    .. _`VOC`: http://host.robots.ox.ac.uk/pascal/VOC/voc2012/
+    .. _`Markers`: https://gitlab.com/ntoussaint/augmentedultrasoundscanning
 
     The index corresponds to each image.
 
@@ -31,7 +31,7 @@ class VOCBboxDataset:
     The labels are packed into a one dimensional tensor of shape :math:`(R,)`.
     :math:`R` is the number of bounding boxes in the image.
     The class name of the label :math:`l` is :math:`l` th element of
-    :obj:`VOC_BBOX_LABEL_NAMES`.
+    :obj:`MARKERS_BBOX_LABEL_NAMES`.
 
     The array :obj:`difficult` is a one dimensional boolean array of shape
     :math:`(R,)`. :math:`R` is the number of bounding boxes in the image.
@@ -47,12 +47,10 @@ class VOCBboxDataset:
 
     Args:
         data_dir (string): Path to the root of the training data. 
-            i.e. "/data/image/voc/VOCdevkit/VOC2007/"
+            i.e. "/data/markers_imdb/"
         split ({'train', 'val', 'trainval', 'test'}): Select a split of the
             dataset. :obj:`test` split is only available for
             2007 dataset.
-        year ({'2007', '2012'}): Use a dataset prepared for a challenge
-            held in :obj:`year`.
         use_difficult (bool): If :obj:`True`, use images that are labeled as
             difficult in the original annotation.
         return_difficult (bool): If :obj:`True`, this dataset returns
@@ -66,15 +64,8 @@ class VOCBboxDataset:
                  use_difficult=False, return_difficult=False,
                  ):
 
-        # if split not in ['train', 'trainval', 'val']:
-        #     if not (split == 'test' and year == '2007'):
-        #         warnings.warn(
-        #             'please pick split from \'train\', \'trainval\', \'val\''
-        #             'for 2012 dataset. For 2007 dataset, you can pick \'test\''
-        #             ' in addition to the above mentioned splits.'
-        #         )
         id_list_file = os.path.join(
-            data_dir, 'ImageSets/Main/{0}.txt'.format(split))
+            data_dir, '{0}.txt'.format(split))
 
         self.ids = [id_.strip() for id_ in open(id_list_file)]
         self.data_dir = data_dir
@@ -103,7 +94,7 @@ class VOCBboxDataset:
         """
         id_ = self.ids[i]
         anno = ET.parse(
-            os.path.join(self.data_dir, 'Annotations', id_ + '.xml'))
+            os.path.join(self.data_dir, 'annotations', id_ + '.xml'))
         bbox = list()
         label = list()
         difficult = list()
@@ -127,7 +118,7 @@ class VOCBboxDataset:
         difficult = np.array(difficult, dtype=np.bool).astype(np.uint8)  # PyTorch don't support np.bool
 
         # Load a image
-        img_file = os.path.join(self.data_dir, 'JPEGImages', id_ + '.jpg')
+        img_file = os.path.join(self.data_dir, 'images', id_ + '.png')
         img = read_image(img_file, color=True)
 
         # if self.return_difficult:
@@ -138,23 +129,7 @@ class VOCBboxDataset:
 
 
 BBOX_LABEL_NAMES = (
-    'aeroplane',
-    'bicycle',
-    'bird',
-    'boat',
-    'bottle',
-    'bus',
-    'car',
-    'cat',
-    'chair',
-    'cow',
-    'diningtable',
-    'dog',
-    'horse',
-    'motorbike',
-    'person',
-    'pottedplant',
-    'sheep',
-    'sofa',
-    'train',
-    'tvmonitor')
+    'topleft', 
+    'topright',
+    'bottomleft', 
+    'bottomright')

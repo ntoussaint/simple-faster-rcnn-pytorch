@@ -1,0 +1,10 @@
+build
+checkpoints
+*_post.c
+*.so
+*.pyc
+*.png
+__pycache__
+.ipynb* 
+.vscode
+
