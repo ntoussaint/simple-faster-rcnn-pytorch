@@ -4,11 +4,11 @@ import torch as t
 import numpy as np
 import cupy as cp
 from utils import array_tool as at
-from model.utils.bbox_tools import loc2bbox
+from model.utils.bbox_tools import loc2bbox, loc2bbox_torch
 from model.utils.nms import non_maximum_suppression
 
 from torch import nn
-from data.dataset import preprocess
+from data.dataset import preprocess_torch
 from torch.nn import functional as F
 from utils.config import opt
 
@@ -219,16 +219,19 @@ class FasterRCNN(nn.Module):
             sizes = list()
             for img in imgs:
                 size = img.shape[1:]
-                img = preprocess(at.tonumpy(img))
+                img = preprocess_torch(img)
                 prepared_imgs.append(img)
                 sizes.append(size)
         else:
-             prepared_imgs = imgs 
+             prepared_imgs = at.totensor(imgs).unsqueeze(0)
         bboxes = list()
         labels = list()
         scores = list()
+        mean = t.Tensor(self.loc_normalize_mean).cuda().repeat(self.n_class)[None]
+        std = t.Tensor(self.loc_normalize_std).cuda().repeat(self.n_class)[None]
+
         for img, size in zip(prepared_imgs, sizes):
-            img = at.totensor(img[None]).float()
+
             scale = img.shape[3] / size[1]
             roi_cls_loc, roi_scores, rois, _ = self(img, scale=scale)
             # We are assuming that batch size is 1.
@@ -238,17 +241,11 @@ class FasterRCNN(nn.Module):
 
             # Convert predictions to bounding boxes in image coordinates.
             # Bounding boxes are scaled to the scale of the input images.
-            mean = t.Tensor(self.loc_normalize_mean).cuda(). \
-                repeat(self.n_class)[None]
-            std = t.Tensor(self.loc_normalize_std).cuda(). \
-                repeat(self.n_class)[None]
-
             roi_cls_loc = (roi_cls_loc * std + mean)
             roi_cls_loc = roi_cls_loc.view(-1, self.n_class, 4)
             roi = roi.view(-1, 1, 4).expand_as(roi_cls_loc)
-            cls_bbox = loc2bbox(at.tonumpy(roi).reshape((-1, 4)),
-                                at.tonumpy(roi_cls_loc).reshape((-1, 4)))
-            cls_bbox = at.totensor(cls_bbox)
+            cls_bbox = loc2bbox_torch(roi.contiguous().view((-1, 4)),
+                                      roi_cls_loc.contiguous().view((-1, 4)))
             cls_bbox = cls_bbox.view(-1, self.n_class * 4)
             # clip bounding box
             cls_bbox[:, 0::2] = (cls_bbox[:, 0::2]).clamp(min=0, max=size[0])
