@@ -66,7 +66,7 @@ def train(**kwargs):
                                        )
     faster_rcnn = FasterRCNNAlexNet()
     print('model construct completed')
-    trainer = FasterRCNNTrainer(faster_rcnn).cuda()
+    trainer = FasterRCNNTrainer(faster_rcnn, len(dataset.label_names)).cuda()
     if opt.load_path:
         trainer.load(opt.load_path)
         print('load pretrained model from %s' % opt.load_path)
