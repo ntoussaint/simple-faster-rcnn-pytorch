@@ -1,13 +1,13 @@
 from __future__ import  absolute_import
 from __future__ import  division
 import torch as t
-from data.voc_dataset import VOCBboxDataset
+from data.markers_dataset import MarkersDataset
 from skimage import transform as sktsf
 from torchvision import transforms as tvtsf
 from data import util
 import numpy as np
 from utils.config import opt
-
+from utils import array_tool as at
 
 def inverse_normalize(img):
     if opt.caffe_pretrain:
@@ -74,6 +74,46 @@ def preprocess(img, min_size=600, max_size=1000):
     return normalize(img)
 
 
+def preprocess_torch(img, min_size=600, max_size=1000):
+    """Preprocess an image for feature extraction.
+
+    The length of the shorter edge is scaled to :obj:`self.min_size`.
+    After the scaling, if the length of the longer edge is longer than
+    :param min_size:
+    :obj:`self.max_size`, the image is scaled to fit the longer edge
+    to :obj:`self.max_size`.
+
+    After resizing the image, the image is subtracted by a mean image value
+    :obj:`self.mean`.
+
+    Args:
+        img (~torch.Tensor): An image in Tensor format (C, H, W). This is in CHW and RGB format.
+            The range of its value is :math:`[0, 255]`.
+
+    Returns:
+        ~torch.Tensor: A preprocessed image.
+
+    """
+    from torch.nn.functional import interpolate
+ 
+    img = at.totensor(img)
+
+    C, H, W = img.shape
+
+    scale1 = min_size / min(H, W)
+    scale2 = max_size / max(H, W)
+    scale = min(scale1, scale2)
+
+
+
+    img = interpolate(img.unsqueeze(0), (int(H * scale), int(W * scale)))
+
+    normalize = tvtsf.Normalize(mean=[0.485, 0.456, 0.406],
+                                std=[0.229, 0.224, 0.225])
+    img = normalize(img.squeeze() / 255.)
+
+    return img.unsqueeze(0)
+
 class Transform(object):
 
     def __init__(self, min_size=600, max_size=1000):
@@ -100,7 +140,7 @@ class Transform(object):
 class Dataset:
     def __init__(self, opt):
         self.opt = opt
-        self.db = VOCBboxDataset(opt.voc_data_dir)
+        self.db = MarkersDataset(opt.markers_data_dir)
         self.tsf = Transform(opt.min_size, opt.max_size)
 
     def __getitem__(self, idx):
@@ -118,7 +158,7 @@ class Dataset:
 class TestDataset:
     def __init__(self, opt, split='test', use_difficult=True):
         self.opt = opt
-        self.db = VOCBboxDataset(opt.voc_data_dir, split=split, use_difficult=use_difficult)
+        self.db = MarkersDataset(opt.markers_data_dir, split=split, use_difficult=use_difficult)
 
     def __getitem__(self, idx):
         ori_img, bbox, label, difficult = self.db.get_example(idx)
