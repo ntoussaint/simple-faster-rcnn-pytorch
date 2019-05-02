@@ -1,6 +1,7 @@
 from __future__ import  absolute_import
 from __future__ import  division
 import torch as t
+from data.voc_dataset import VOCBboxDataset
 from data.markers_dataset import MarkersDataset
 from skimage import transform as sktsf
 from torchvision import transforms as tvtsf
@@ -140,8 +141,15 @@ class Transform(object):
 class Dataset:
     def __init__(self, opt):
         self.opt = opt
-        self.db = MarkersDataset(opt.markers_data_dir)
+        if self.opt.data == 'markers':
+            self.db = MarkersDataset(opt.data_dir)
+        elif self.opt.data == 'voc':
+            self.db = VOCBboxDataset(opt.data_dir)
+        else:
+            raise Exception('database type not recognised: {}'.format(self.opt.data))
+
         self.tsf = Transform(opt.min_size, opt.max_size)
+        self.label_names = self.db.get_label_names()
 
     def __getitem__(self, idx):
         ori_img, bbox, label, difficult = self.db.get_example(idx)
@@ -158,7 +166,13 @@ class Dataset:
 class TestDataset:
     def __init__(self, opt, split='test', use_difficult=True):
         self.opt = opt
-        self.db = MarkersDataset(opt.markers_data_dir, split=split, use_difficult=use_difficult)
+        if self.opt.data == 'markers':
+            self.db = MarkersDataset(opt.data_dir)
+        elif self.opt.data == 'voc':
+            self.db = VOCBboxDataset(opt.data_dir)
+        else:
+            raise Exception('database type not recognised: {}'.format(self.opt.data))
+        self.label_names = self.db.get_label_names()
 
     def __getitem__(self, idx):
         ori_img, bbox, label, difficult = self.db.get_example(idx)

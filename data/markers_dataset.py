@@ -71,10 +71,13 @@ class MarkersDataset:
         self.data_dir = data_dir
         self.use_difficult = use_difficult
         self.return_difficult = return_difficult
-        self.label_names = MARKERS_BBOX_LABEL_NAMES
+        self.label_names = BBOX_LABEL_NAMES
 
     def __len__(self):
         return len(self.ids)
+
+    def get_label_names(self):
+        return self.label_names
 
     def get_example(self, i):
         """Returns the i-th example.
@@ -108,7 +111,7 @@ class MarkersDataset:
                 int(bndbox_anno.find(tag).text) - 1
                 for tag in ('ymin', 'xmin', 'ymax', 'xmax')])
             name = obj.find('name').text.lower().strip()
-            label.append(MARKERS_BBOX_LABEL_NAMES.index(name))
+            label.append(BBOX_LABEL_NAMES.index(name))
         bbox = np.stack(bbox).astype(np.float32)
         label = np.stack(label).astype(np.int32)
         # When `use_difficult==False`, all elements in `difficult` are False.
@@ -125,7 +128,7 @@ class MarkersDataset:
     __getitem__ = get_example
 
 
-MARKERS_BBOX_LABEL_NAMES = (
+BBOX_LABEL_NAMES = (
     'topleft', 
     'topright',
     'bottomleft', 
